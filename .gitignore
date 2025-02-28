@@ -1,0 +1,3 @@
+# Ignore installed Datasets for Tests
+./datasets/pretrain/PhysioNetMI
+./datasets/downstream/erp-based-brain-computer-interface-recordings-1.0.0
