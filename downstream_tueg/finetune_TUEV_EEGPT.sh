@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -x  # print the commands
+# set -x  # print the commands
 
 # export MASTER_PORT=${MASTER_PORT:-12320}  # You should set the same master_port in all the nodes
 export MASTER_PORT=$((12000 + $RANDOM % 20000))

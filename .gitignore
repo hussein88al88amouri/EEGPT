@@ -1,3 +1,7 @@
 # Ignore installed Datasets for Tests
-./datasets/pretrain/PhysioNetMI
-./datasets/downstream/erp-based-brain-computer-interface-recordings-1.0.0
+datasets/pretrain/PhysioNetMI
+datasets/downstream/erp-based-brain-computer-interface-recordings-1.0.0
+datasets/downstream/PhysioNetP300/
+checkpoint/eegpt_mcae_58chs_4s_large4E.ckpt
+downstream/logs/
+.venv

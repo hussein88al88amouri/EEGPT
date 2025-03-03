@@ -45,6 +45,6 @@ for sub in [2,3,4,5,6,7,9,11]:
             x = torch.tensor(d*1e3)
             y = label
             spath = dataset_fold+f'{y}/'
-            os.makedirs(path,exist_ok=True)
+            os.makedirs(spath,exist_ok=True)
             spath = spath + f'{i}.sub{sub}'
             torch.save(x, spath)
