@@ -18,6 +18,16 @@ Install Python 3.9 and its package manager (`pip`):
 ```bash
 sudo apt install python3.9 python3.9-distutils
 ```
+If it did not work, install the following `lib` packages
+```bash
+sudo apt install build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev curl software-properties-common
+sudo apt update
+sudo apt upgrade
+sudo apt install software-properties-common
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt update
+sudo apt-get upgrade
+```
 
 ### 3. Install Pip for Python 3.9
 If `pip` is not installed, download and install it:
@@ -29,7 +39,7 @@ python3.9 get-pip.py
 ### 4. Install Python 3.9 Development Headers
 Install the development headers required for compiling Python extensions:
 ```bash
-sudo apt install python3.9-dev
+sudo apt install python3.9-dev python3.9-venv
 ```
 
 ### 5. Install Ninja Build System
