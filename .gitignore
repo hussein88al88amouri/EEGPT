@@ -5,3 +5,4 @@ datasets/downstream/PhysioNetP300/
 checkpoint/eegpt_mcae_58chs_4s_large4E.ckpt
 downstream/logs/
 .venv
+activate_EEGPT_env.sh
