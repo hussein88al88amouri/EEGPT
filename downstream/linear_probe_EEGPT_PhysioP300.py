@@ -79,7 +79,7 @@ class LitEEGPTCausal(pl.LightningModule):
         self.chans_id       = target_encoder.prepare_chan_ids(use_channels_names)
         
         # -- load checkpoint
-        pretrain_ckpt = torch.load(load_path)
+        pretrain_ckpt = torch.load(load_path, map_location=torch.device('cpu')) # change to take cuda if exist
         
         target_encoder_stat = {}
         for k,v in pretrain_ckpt['state_dict'].items():
@@ -245,7 +245,7 @@ max_epochs = 100
 
 
 
-all_subjects = [1,2,3,4,5,6,7,9,11]
+all_subjects = [2,3,4,5,6,7,9,11]
 for i,sub in enumerate(all_subjects):
     sub_train = [f".sub{x}" for x in all_subjects if x!=sub]
     sub_valid = [f".sub{sub}"]
@@ -266,7 +266,7 @@ for i,sub in enumerate(all_subjects):
     lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='epoch')
     callbacks = [lr_monitor]
     max_lr = 8e-4
-    trainer = pl.Trainer(accelerator='cuda',
+    trainer = pl.Trainer(accelerator='cpu', # cuda if exist
                 max_epochs=max_epochs, 
                 callbacks=callbacks,
                 enable_checkpointing=False,
