@@ -167,7 +167,7 @@ torcheeg==1.1.0
 torchinfo==1.8.0
 torchlibrosa==0.1.0
 torchmetrics==0.11.4
-torchsampler==0.1.2
+torchsampler==0.1.22
 torchsummary==1.5.1
 torchvision==0.15.1
 tqdm==4.65.0

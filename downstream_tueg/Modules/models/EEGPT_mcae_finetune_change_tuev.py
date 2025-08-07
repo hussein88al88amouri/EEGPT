@@ -159,7 +159,7 @@ class RotaryEmbedding(nn.Module):
 
         self.register_buffer('scale', None)
         
-    def prepare_freqs(self, num_patches = (1, 8), device='cuda', dtype=torch.float, offset = 0):
+    def prepare_freqs(self, num_patches = (1, 8), device='cpu', dtype=torch.float, offset = 0):
         # num_patches (C, N)
         C, N = num_patches
         cache_key = f'freqs:{num_patches}'
@@ -298,8 +298,14 @@ class PatchEmbed(nn.Module):
         
     def forward(self, x):
         # x: B,C,T
+        # print('normal x')
+        print(x.shape)
         x = x.unsqueeze(1)# B, 1, C, T
+        # print('unsqueezed x')
+        # print(x.shape)
         x = self.proj(x).transpose(1,3) # B, T, C, D
+        # print('prjected transposed x')
+        # print(x.shape)
         return x
 
 
@@ -511,7 +517,9 @@ class EEGTransformer(nn.Module):
         # mask_t.shape mN
         
         # -- patchify x
+        # print(x.shape)
         x = self.patch_embed(x) #
+        # print(x.shape)
         B, N, C, D = x.shape
         
         assert N==self.num_patches[1] and C==self.num_patches[0], f"{N}=={self.num_patches[1]} and {C}=={self.num_patches[0]}"
@@ -766,7 +774,8 @@ class EEGPTClassifier(nn.Module):
             # nn.ReLU(),
             nn.Dropout(0.8),
             # LinearWithConstraint(4*self.embed_dim*40, num_classes)
-            LinearWithConstraint(30720, num_classes),
+            # LinearWithConstraint(30720, num_classes),
+            LinearWithConstraint(6144, num_classes),
             # nn.Dropout(0.25),
             # nn.Linear(4*self.embed_dim*31, num_classes)
         )
@@ -831,7 +840,7 @@ class EEGPTClassifier(nn.Module):
         For example, for an EEG sample of 4 seconds with 64 electrodes, x will be [batch size, 64, 4*256]
         '''
         if len(x.shape)==4: x = x.flatten(2)
-        
+
         x = self.forward_features(x, chan_ids=chan_ids, return_patch_tokens=return_patch_tokens, return_all_tokens=return_all_tokens, **kwargs)
         # print(x.shape)
 
@@ -872,7 +881,7 @@ if __name__=="__main__":
     x = torch.zeros((2,len(ch_names),1000))
     with torch.no_grad():
         z = model(x)
-        print(z.shape)
+        # print(z.shape)
 
     from thop import profile
     flops, params = profile(model, inputs=(x,))

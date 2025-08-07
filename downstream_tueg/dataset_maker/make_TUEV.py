@@ -182,7 +182,7 @@ TUEV dataset is downloaded from https://isip.piconepress.com/projects/tuh_eeg/ht
 """
 
 # root = "../datasets/downstream/tuh_eeg_events/v2.0.0/edf"
-root = "/home/linah03/scratch/Datasets/TUSZ/TUSZEEG/edf"
+root = "/home/linah03/scratch/Datasets/TUSZ/zTUSZEEG/edf"
 train_out_dir = os.path.join(root, "processed_train")
 eval_out_dir = os.path.join(root, "processed_eval")
 if not os.path.exists(train_out_dir):

@@ -16,7 +16,6 @@ import utils
 from einops import rearrange
 
 def train_class_batch(model, samples, target, criterion, ch_names):
-    
     outputs = model(samples)
     loss = criterion(outputs, target)
     return loss, outputs
@@ -50,6 +49,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         optimizer.zero_grad()
 
     for data_iter_step, (samples, targets) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
+        # raise ValueError(f'samples length {samples.shape}')
         step = data_iter_step // update_freq
         if step >= num_training_steps_per_epoch:
             continue
@@ -70,11 +70,12 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
             targets = targets.float().unsqueeze(-1)
 
         if loss_scaler is None:
-            samples = samples.half()
+            # samples = samples.half() # I removed this check why they are using half?
             loss, output = train_class_batch(
                 model, samples, targets, criterion, input_chans)
         else:
             with torch.cuda.amp.autocast():
+            # with torch.autocast(device_type='cpu', dtype=torch.float):
                 loss, output = train_class_batch(
                     model, samples, targets, criterion, input_chans)
 
@@ -86,7 +87,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
         if loss_scaler is None:
             loss /= update_freq
-            model.backward(loss)
+            modlel.backward(loss)
             model.step()
 
             if (data_iter_step + 1) % update_freq == 0:
@@ -107,9 +108,13 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                 optimizer.zero_grad()
                 if model_ema is not None:
                     model_ema.update(model)
-            loss_scale_value = loss_scaler.state_dict()["scale"]
+            # loss_scale_value = loss_scaler.state_dict()["amp_scaler"] # ["scale"]
+            if hasattr(loss_scaler, "_scaler") and loss_scaler._scaler is not None:
+                loss_scale_value = loss_scaler.state_dict().get("scale", 1.0)
+            else:
+                loss_scale_value = 1.0
 
-        torch.cuda.synchronize()
+        # torch.cuda.synchronize()
 
         if is_binary:
             class_acc = utils.get_metrics(torch.sigmoid(output).detach().cpu().numpy(), targets.detach().cpu().numpy(), ["accuracy"], is_binary)["accuracy"]
@@ -179,6 +184,7 @@ def evaluate(data_loader, model, device, header='Test:', ch_names=None, metrics=
         
         # compute output
         with torch.cuda.amp.autocast():
+        # with torch.autocast(device_type='cpu', dtype=torch.float):
             output = model(EEG)
             loss = criterion(output, target)
         

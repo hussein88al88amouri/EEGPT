@@ -41,7 +41,8 @@ standard_1020 = [
     'CFC1', 'CFC2', 'CFC3', 'CFC4', 'CFC5', 'CFC6', 'CFC7', 'CFC8', \
     'CCP1', 'CCP2', 'CCP3', 'CCP4', 'CCP5', 'CCP6', 'CCP7', 'CCP8', \
     'T1', 'T2', 'FTT9h', 'TTP7h', 'TPP9h', 'FTT10h', 'TPP8h', 'TPP10h', \
-    "FP1-F7", "F7-T7", "T7-P7", "P7-O1", "FP2-F8", "F8-T8", "T8-P8", "P8-O2", "FP1-F3", "F3-C3", "C3-P3", "P3-O1", "FP2-F4", "F4-C4", "C4-P4", "P4-O2"
+    "FP1-F7", "F7-T7", "T7-P7", "P7-O1", "FP2-F8", "F8-T8", "T8-P8", "P8-O2", "FP1-F3", "F3-C3", "C3-P3", "P3-O1", "FP2-F4", "F4-C4", "C4-P4", "P4-O2",
+    'seiz', 'bckg'
 ]
 
 
@@ -89,7 +90,7 @@ class SmoothedValue(object):
         """
         if not is_dist_avail_and_initialized():
             return
-        t = torch.tensor([self.count, self.total], dtype=torch.float64, device='cuda')
+        t = torch.tensor([self.count, self.total], dtype=torch.float, device='cpu') # float64 cuda
         dist.barrier()
         dist.all_reduce(t)
         t = t.tolist()
@@ -483,34 +484,84 @@ def get_grad_norm(parameters, norm_type=2):
     total_norm = total_norm ** (1. / norm_type)
     return total_norm
 
+# class NativeScalerWithGradNormCount:
+#     state_dict_key = "amp_scaler"
+
+#     def __init__(self):
+#         self._scaler = torch.cuda.amp.GradScaler()
+
+#     def __call__(self, loss, optimizer, clip_grad=None, parameters=None, create_graph=False, update_grad=True, layer_names=None):
+#         self._scaler.scale(loss).backward(create_graph=create_graph)
+#         if update_grad:
+#             if clip_grad is not None:
+#                 assert parameters is not None
+#                 self._scaler.unscale_(optimizer)  # unscale the gradients of optimizer's assigned params in-place
+#                 norm = torch.nn.utils.clip_grad_norm_(parameters, clip_grad)
+#             else:
+#                 self._scaler.unscale_(optimizer)
+#                 norm = get_grad_norm_(parameters, layer_names=layer_names)
+#             self._scaler.step(optimizer)
+#             self._scaler.update()
+#         else:
+#             norm = None
+#         return norm
+
+#     def state_dict(self):
+#         return self._scaler.state_dict()
+
+#     def load_state_dict(self, state_dict): 
+#         self._scaler.load_state_dict(state_dict)
+
+##############################
 class NativeScalerWithGradNormCount:
     state_dict_key = "amp_scaler"
 
     def __init__(self):
-        self._scaler = torch.cuda.amp.GradScaler()
+        if torch.cuda.is_available():
+            self._scaler = torch.cuda.amp.GradScaler()
+        else:
+            self._scaler = None  # No-op on CPU
 
     def __call__(self, loss, optimizer, clip_grad=None, parameters=None, create_graph=False, update_grad=True, layer_names=None):
-        self._scaler.scale(loss).backward(create_graph=create_graph)
-        if update_grad:
-            if clip_grad is not None:
-                assert parameters is not None
-                self._scaler.unscale_(optimizer)  # unscale the gradients of optimizer's assigned params in-place
-                norm = torch.nn.utils.clip_grad_norm_(parameters, clip_grad)
+        if self._scaler is not None:
+            self._scaler.scale(loss).backward(create_graph=create_graph)
+            if update_grad:
+                if clip_grad is not None:
+                    assert parameters is not None
+                    self._scaler.unscale_(optimizer)
+                    norm = torch.nn.utils.clip_grad_norm_(parameters, clip_grad)
+                else:
+                    self._scaler.unscale_(optimizer)
+                    norm = get_grad_norm_(parameters, layer_names=layer_names)
+                self._scaler.step(optimizer)
+                self._scaler.update()
             else:
-                self._scaler.unscale_(optimizer)
-                norm = get_grad_norm_(parameters, layer_names=layer_names)
-            self._scaler.step(optimizer)
-            self._scaler.update()
+                norm = None
         else:
-            norm = None
+            # CPU fallback — no scaling
+            loss.backward(create_graph=create_graph)
+            if update_grad:
+                if clip_grad is not None:
+                    assert parameters is not None
+                    norm = torch.nn.utils.clip_grad_norm_(parameters, clip_grad)
+                else:
+                    norm = get_grad_norm_(parameters, layer_names=layer_names)
+                optimizer.step()
+            else:
+                norm = None
+
         return norm
 
     def state_dict(self):
-        return self._scaler.state_dict()
+        if self._scaler is not None:
+            return self._scaler.state_dict()
+        else:
+            return {}
 
-    def load_state_dict(self, state_dict): 
-        self._scaler.load_state_dict(state_dict)
-
+    def load_state_dict(self, state_dict):
+        if self._scaler is not None:
+            self._scaler.load_state_dict(state_dict)
+####################
 
 def get_grad_norm_(parameters, norm_type: float = 2.0, layer_names=None) -> torch.Tensor:
     if isinstance(parameters, torch.Tensor):
@@ -798,7 +849,8 @@ class IndexDataset(Dataset):
         self.is_valid=is_valid
         self.all_eegs = all_eegs
         self.transform_fn = transform_fn
-        self.class_name_to_num = {'cpsz':0, 'gnsz':1, 'fnsz':2, 'tcsz':3, 'spsz':4, 'absz':5, 'tnsz':6,'bckg':7}
+        # self.class_name_to_num = {'cpsz':0, 'gnsz':1, 'fnsz':2, 'tcsz':3, 'spsz':4, 'absz':5, 'tnsz':6,'bckg':7}
+        self.class_name_to_num = {'bckg':0, 'seiz':1}
 
     def __len__(self):
         """
@@ -808,9 +860,9 @@ class IndexDataset(Dataset):
                         
     def __data_generation(self, index):
         row = self.df.iloc[index]
-        
         x = self.all_eegs[row.id]
-        y = self.class_name_to_num[row.class_code]
+        # y = self.class_name_to_num[row.class_code]
+        y = row.class_code
 
         return x, y
         
@@ -823,27 +875,52 @@ class IndexDataset(Dataset):
         output = self.transform_fn(output,self.cfg)
         return output 
     
+# def transform_fn(info, cfg):
+#     x, y = info
+#     si = np.random.randint(0,x.shape[-1]-2000)
+#     x = x[:-1,si:si+2000]
+#     x = torch.tensor(x, dtype = torch.float)
+#     return x, y
+
 def transform_fn(info, cfg):
     x, y = info
-    si = np.random.randint(0,x.shape[-1]-2000)
-    x = x[:-1,si:si+2000]
+    si = np.random.randint(0, x.shape[-1] -200) #2000
+    x = x[:-1,si:si + 200]
     x = torch.tensor(x, dtype = torch.float)
+
+    # zeros = torch.zeros(x.size(0), 2, x.size(2), x.size(3), device=x.device)
+    # x = torch.cat([x, zeros], dim=1)
     return x, y
 
 def prepare_TUSZ_dataset(root):
     import pandas as pd
     import numpy as np
 
-    train_csv = pd.read_csv('/disks/SSD2/data/transformed2/tuh-eeg/seizures.csv')
-    all_eegs =  np.load('/disks/SSD2/data/transformed2/tuh-eeg/eegs.npy',allow_pickle=True).item()
-    
+    # train_csv = pd.read_csv('/disks/SSD2/data/transformed2/tuh-eeg/seizures.csv')
+    # all_eegs =  np.load('/disks/SSD2/data/transformed2/tuh-eeg/eegs.npy',allow_pickle=True).item()
+
+    train_csv = pd.read_csv('/home/hussein/WorSpace/LBW/TUSZEEG/edf/processed/npyfile/seizures.csv')
+    all_eegs =  np.load('/home/hussein/WorSpace/LBW/TUSZEEG/edf/processed/npyfile/eegs.npy',allow_pickle=True).item()
+
+
+    # --- Efficiently extend all arrays in the dictionary ---
+    for key in all_eegs:
+        original_array = all_eegs[key]
+        
+        # Create 2 new rows filled with zeros, matching the data type of the original array
+        # np.zeros_like creates an array with the same shape and dtype as a given array
+        new_rows = np.zeros((2, original_array.shape[1]), dtype=original_array.dtype)
+        
+        # Vertically stack the original array with the new rows
+        all_eegs[key] = np.vstack((original_array, new_rows))
+
     train_csv = train_csv[train_csv.loc[:,'id'].isin(set(all_eegs.keys()))]
     
     
-    train_df = train_csv[train_csv['directory']=='train']
+    train_df = train_csv[train_csv['directory']=='processed_train']
     from sklearn.model_selection import train_test_split
     train_df, valid_df, _, _ = train_test_split(train_df, train_df['class_code'], test_size=0.2, random_state=42, shuffle=True, stratify=train_df['class_code'])
-    test_df = train_csv[train_csv['directory']=='dev']
+    test_df = train_csv[train_csv['directory']=='processed_dev']
     
     # set random seed
     seed = 12345
