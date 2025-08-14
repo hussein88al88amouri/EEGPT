@@ -892,7 +892,7 @@ def transform_fn(info, cfg):
     # x = torch.cat([x, zeros], dim=1)
     return x, y
 
-def prepare_TUSZ_dataset(root):
+def -(root):
     import pandas as pd
     import numpy as np
 
@@ -901,6 +901,9 @@ def prepare_TUSZ_dataset(root):
 
     train_csv = pd.read_csv('/home/hussein/WorSpace/LBW/TUSZEEG/edf/processed/npyfile/seizures.csv')
     all_eegs =  np.load('/home/hussein/WorSpace/LBW/TUSZEEG/edf/processed/npyfile/eegs.npy',allow_pickle=True).item()
+
+    train_csv = pd.read_csv('/home/linah03/scratch/Datasets/THUSZ/edf/processed_npyfile/seizures.csv')
+    all_eegs =  np.load('/home/linah03/scratch/Datasets/THUSZ/edf/processed_npyfile/eegs.npy',allow_pickle=True).item()
 
 
     # --- Efficiently extend all arrays in the dictionary ---
